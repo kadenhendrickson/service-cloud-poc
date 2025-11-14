@@ -1263,7 +1263,7 @@ resource "dx_scorecard" "github_repo_configuration" {
 # Snyk Issues Scorecard
 resource "dx_scorecard" "snyk_issues" {
   name                           = "[Service] Snyk Issues"
-  description                    = ""
+  description                    = null
   type                           = "LEVEL"
   entity_filter_type             = "sql"
   entity_filter_sql              = <<-EOT
@@ -1302,7 +1302,7 @@ resource "dx_scorecard" "snyk_issues" {
   checks = {
     high_critical_snyk_issues = {
       name                = "\"High/Critical\" Snyk Issues Open"
-      description         = ""
+      description         = null
       scorecard_level_key = "bronze"
       ordering            = 0
       sql                 = <<-EOT
@@ -1338,7 +1338,7 @@ resource "dx_scorecard" "snyk_issues" {
 
     medium_snyk_issues = {
       name                = "\"Medium\" Snyk Issues Open"
-      description         = ""
+      description         = null
       scorecard_level_key = "silver"
       ordering            = 0
       sql                 = <<-EOT
@@ -1374,7 +1374,7 @@ resource "dx_scorecard" "snyk_issues" {
 
     low_snyk_issues = {
       name                = "\"Low\" Snyk Issues Open"
-      description         = ""
+      description         = null
       scorecard_level_key = "gold"
       ordering            = 0
       sql                 = <<-EOT
