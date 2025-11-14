@@ -19,7 +19,7 @@ This repository contains resources that DX Customer Engineers can use to help cu
      - `.terraform/` directory
      - `terraform.tfstate` (if present)
      - `terraform.tfstate.backup` (if present)
-     - `terraform.lock.hcl` (if present)
+     - `.terraform.lock.hcl` (if present)
 
 2) Configure the customer’s DX API token
    - Option A (recommended): export an environment variable before running Terraform:
@@ -132,7 +132,7 @@ terraform apply -target=dx_scorecard.github_repo_configuration
 ```bash
 # 1) Clean state
 cd terraform-scorecards
-rm -rf .terraform terraform.tfstate terraform.tfstate.backup terraform.lock.hcl
+rm -rf .terraform terraform.tfstate terraform.tfstate.backup .terraform.lock.hcl
 
 # 2) Set customer token (recommended via env)
 export DX_WEB_API_TOKEN="<customer_dx_web_api_token>"
