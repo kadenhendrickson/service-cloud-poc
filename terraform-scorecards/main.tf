@@ -1265,43 +1265,65 @@ resource "dx_scorecard" "snyk_issues" {
   name                           = "[Service] Snyk Issues"
   description                    = null
   type                           = "LEVEL"
-  entity_filter_type             = "sql"
-  entity_filter_sql              = <<-EOT
-    SELECT ce.identifier
-    FROM dx_catalog_entities ce
-      JOIN dx_catalog_entity_types cet ON ce.entity_type_id = cet.id 
-      JOIN dx_catalog_properties cp on cp.entity_type_id = cet.id
-      JOIN dx_catalog_entity_properties cep on cep.entity_id = ce.id AND cep.property_id = cp.id
-    WHERE cet.identifier = 'service'
-    AND cp.identifier = 'is-datadog-service'
-    AND cep.value::text = 'true'
-  EOT
+  entity_filter_type             = "entity_types"
+  entity_filter_type_identifiers = ["service"]
   evaluation_frequency_hours     = 4
   empty_level_label              = "Has High/Critical Snyk Issues"
   empty_level_color              = "#cbd5e1"
   published                      = false
 
   levels = {
+    required = {
+      name = "Required"
+      color = "#000000"
+      rank = 1
+    }
     bronze = {
       name  = "Bronze"
       color = "#FB923C"
-      rank  = 1
+      rank  = 2
     }
     silver = {
       name  = "Silver"
       color = "#9CA3AF"
-      rank  = 2
+      rank  = 3
     }
     gold = {
       name  = "Gold"
       color = "#FBBF24"
-      rank  = 3
+      rank  = 4
     }
   }
 
   checks = {
+    required = {
+      name                = "Has Snky Project"
+      description         = null
+      scorecard_level_key = "required"
+      ordering            = 0
+      sql                 = <<-EOT
+        SELECT dce.identifier AS entity_identifier,
+          dce.name AS entity_name,
+          CASE
+            WHEN dcea.id IS NOT NULL THEN 'PASS'
+            ELSE 'FAIL'
+          END AS status,
+          dceae.name AS snyk_project_name,
+          1 as count
+        FROM dx_catalog_entities dce
+          LEFT JOIN dx_catalog_entity_aliases dcea ON dce.id = dcea.entity_id
+          AND dcea.entity_alias_type = 'snyk_project'
+          LEFT JOIN dx_catalog_entity_alias_entries dceae ON dceae.entity_alias_id = dcea.id
+        WHERE dce.identifier = $entity_identifier
+      EOT
+      output_enabled      = false
+      output_type         = null
+      output_aggregation  = null
+      published           = true 
+    }
+
     high_critical_snyk_issues = {
-      name                = "\"High/Critical\" Snyk Issues Open"
+      name                = "No \"High/Critical\" Snyk Issues Open"
       description         = null
       scorecard_level_key = "bronze"
       ordering            = 0
@@ -1323,7 +1345,6 @@ resource "dx_scorecard" "snyk_issues" {
         )
         SELECT CASE
             WHEN COUNT(*) = 0 THEN 'PASS'
-            WHEN COUNT(*) < 3 THEN 'WARN'
             ELSE 'FAIL'
           END AS status,
           COUNT(*) AS output
@@ -1337,7 +1358,7 @@ resource "dx_scorecard" "snyk_issues" {
     }
 
     medium_snyk_issues = {
-      name                = "\"Medium\" Snyk Issues Open"
+      name                = "No \"Medium\" Snyk Issues Open"
       description         = null
       scorecard_level_key = "silver"
       ordering            = 0
@@ -1358,8 +1379,7 @@ resource "dx_scorecard" "snyk_issues" {
           WHERE si.status = 'open'
         )
         SELECT CASE
-            WHEN COUNT(*) < 20 THEN 'PASS'
-            WHEN COUNT(*) < 30 THEN 'WARN'
+            WHEN COUNT(*) = 0 THEN 'PASS'
             ELSE 'FAIL'
           END AS status,
           COUNT(*) AS output
@@ -1373,7 +1393,7 @@ resource "dx_scorecard" "snyk_issues" {
     }
 
     low_snyk_issues = {
-      name                = "\"Low\" Snyk Issues Open"
+      name                = "No \"Low\" Snyk Issues Open"
       description         = null
       scorecard_level_key = "gold"
       ordering            = 0
@@ -1394,8 +1414,7 @@ resource "dx_scorecard" "snyk_issues" {
           WHERE si.status = 'open'
         )
         SELECT CASE
-            WHEN COUNT(*) < 20 THEN 'PASS'
-            WHEN COUNT(*) < 30 THEN 'WARN'
+            WHEN COUNT(*) = 0 THEN 'PASS'
             ELSE 'FAIL'
           END AS status,
           COUNT(*) AS output
