@@ -1,0 +1,25 @@
+# This file is maintained automatically by "terraform init".
+# Manual edits may be lost in future updates.
+
+provider "registry.terraform.io/get-dx/dx" {
+  version     = "0.4.0"
+  constraints = "~> 0.4.0"
+  hashes = [
+    "h1:mZkdrjXE0AEToisFRUP6Ssu4VOy4mt13hUeLFIj2cXU=",
+    "zh:293342c7542799e99b6f81cbe6a8bc3299761dc918e29d6806152af2206e2a3d",
+    "zh:45ac48fa41fa626c90209e2d90b42321133a28ae1a96f85b9f35ca6d428aada5",
+    "zh:5501ff7facefb6c3ad3c46465bcb7bb634aeb8683a40cea95e75d6dba9f3dc0b",
+    "zh:6fdf76aa85655bfc1364b8861c35e4503d974633acc0cfd0a92d6f89bab43740",
+    "zh:71c75a5b2b9150cc53f0c797d66660dd3393ae7e94bd01f37e0691ba52f75c25",
+    "zh:807518e72d98b2b362b4dd17b4738e6676a884299a254fa016eb58674aa7f4ec",
+    "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
+    "zh:911df64644131ca8195638eb1271a1b9ae1aac624b833e9e6a34d72d336209e2",
+    "zh:ab2b38a221d2c286be950d8b94e6d773f984031df9e29c7e12a0de07d8ea7df6",
+    "zh:c242e90870ae62be74008993020f115e14f29e6c8aa076769c475e9cef0f8893",
+    "zh:c82831aefd1b99f91d0be267713a0cb3ec21e0fe8c18d768f5b9f863eca03ba8",
+    "zh:db0dd5e1136fb0436552e185f8ee3edde50b4626cf06d268747aabc513768e43",
+    "zh:e131585e2f78b41c115d443b5edd96d975c98d8370ff3df44dc9c03d8db54818",
+    "zh:e3541d93f44aea73560dc684c6cb24307a62d74a281f411860219a8c341c90fa",
+    "zh:e50874722e95594cd670069f749f4136dfe3aba7aa2f66d28e62155598ea3780",
+  ]
+}

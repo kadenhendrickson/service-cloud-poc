@@ -1,0 +1,11 @@
+#Terraform state
+terraform-scorecards/.terraform
+terraform-scorecards/terraform.tfstate
+terraform-scorecards/terraform.tfstate.backup
+terraform-scorecards/terraform.lock.hcl
+
+# Node modules
+github-data-collection/node_modules
+
+# OS files
+.DS_Store
