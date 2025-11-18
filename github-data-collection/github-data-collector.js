@@ -119,6 +119,13 @@ const main = async () => {
       }
     }
 
+    // Get repository languages
+    const languagesData = await github.rest.repos.listLanguages({
+      owner: repo.owner.login,
+      repo: repo.name,
+    });
+    const languages = languagesData.data ?? null;
+
     const recObj = {
       repo_full_name: repo.full_name,
       repo_id: repo.id,
@@ -135,7 +142,8 @@ const main = async () => {
       branch_protection_lock_branch: branchProtectionData?.lock_branch?.enabled ?? null,
       branch_protection_allow_fork_syncing: branchProtectionData?.allow_fork_syncing?.enabled ?? null,
       branch_protection_required_pr_reviews: branchProtectionData?.required_pull_request_reviews ?? null, // JSON object
-      branch_protection_required_status_checks: branchProtectionData?.required_status_checks ?? null // JSON object
+      branch_protection_required_status_checks: branchProtectionData?.required_status_checks ?? null, // JSON object
+      language: languages ?? null
     };
 
     if (outputMode === "csv") {
@@ -212,6 +220,7 @@ const writeCsv = (records, filePath) => {
     "branch_protection_allow_fork_syncing",
     "branch_protection_required_pr_reviews",
     "branch_protection_required_status_checks",
+    "language",
   ];
   const header = columns.join(",");
   const lines = records.map((rec) =>
@@ -303,6 +312,11 @@ function buildEntries(rec) {
         reference: rec.repo_full_name,
         key: "branch_protection:required_status_checks",
         value: { required_status_checks: rec.branch_protection_required_status_checks },
+      },
+      {
+        reference: rec.repo_full_name,
+        key: "language",
+        value: { most_used_language: rec.most_used_language },
       },
     ];
   }

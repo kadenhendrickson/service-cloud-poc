@@ -28,10 +28,7 @@ If using `--output=dx` you also need:
 From this directory:
 
 ```bash
-cd "POC Data Collection"
 npm install
-# or for clean, reproducible installs
-npm ci
 ```
 
 ---

@@ -12,7 +12,7 @@ resource "dx_scorecard" "production_readiness_example" {
 
   tags = [
     { value = "production" },
-    { value = "service-readiness"}
+    { value = "service-readiness" }
   ]
 
   levels = {
@@ -29,8 +29,8 @@ resource "dx_scorecard" "production_readiness_example" {
       scorecard_level_key = "prod-ready"
       ordering            = 0
 
-      description    = "Is the owner defined for this service?"
-      sql            = <<-EOT
+      description        = "Is the owner defined for this service?"
+      sql                = <<-EOT
         SELECT CASE
           WHEN count(*) > 0 THEN 'PASS'
           ELSE 'FAIL'
@@ -39,7 +39,7 @@ resource "dx_scorecard" "production_readiness_example" {
         JOIN dx_catalog_entity_owners o ON e.id = o.entity_id
       WHERE e.identifier = $entity_identifier;
       EOT
-      output_enabled = false
+      output_enabled     = false
       published          = true
       estimated_dev_days = 1.5
     },
@@ -158,6 +158,249 @@ resource "dx_scorecard" "production_readiness_example" {
       estimated_dev_days = 1.5
     }
   }
+}
+
+# CI Reliability Scorecard
+resource "dx_scorecard" "ci_reliability" {
+  checks = {
+    "p_50" = {
+      description    = "Time spent waiting for P50 is 10 minutes or less"
+      name           = "P50"
+      scorecard_level_key = "bronze"
+      ordering       = 0
+      output_enabled = true
+      output_type    = "string"
+      published      = true
+      sql            = <<-EOT
+                -- Scorecard check: P50 Build Wait Time ≤ 10 minutes
+                -- This check calculates the median (p50) build duration for the service
+                -- and passes if it's 10 minutes (600 seconds) or less
+                
+                WITH entity_repo AS (
+                  -- Step 1: Get the repository name for this specific entity
+                  SELECT dceae.name AS repository_name
+                  FROM dx_catalog_entities dce
+                  JOIN dx_catalog_entity_aliases dcea ON dce.id = dcea.entity_id
+                  JOIN dx_catalog_entity_alias_entries dceae ON dceae.entity_alias_id = dcea.id
+                  WHERE dce.identifier = $entity_identifier
+                    AND dce.entity_type_identifier = 'service'
+                    AND dcea.entity_alias_type = 'github_repo'
+                ),
+                build_durations AS (
+                  -- Step 2: Get build durations for this entity's repository
+                  SELECT pr.duration
+                  FROM entity_repo er
+                  JOIN pipeline_runs pr ON pr.repository = er.repository_name
+                  WHERE pr.duration IS NOT NULL
+                    AND pr.duration > 0
+                ),
+                p50_calculation AS (
+                  -- Step 3: Calculate P50 build duration
+                  SELECT 
+                    percentile_cont(0.5) WITHIN GROUP (ORDER BY duration) AS p50_duration,
+                    COUNT(*) AS total_builds
+                  FROM build_durations
+                )
+                -- Step 4: Return check results
+                SELECT 
+                  CASE
+                    WHEN p50.total_builds = 0 THEN 'FAIL'
+                    WHEN p50.p50_duration <= 600 THEN 'PASS'
+                    WHEN p50.p50_duration <= 900 THEN 'WARN'
+                    ELSE 'FAIL'
+                  END AS status,
+                  ROUND(COALESCE(p50.p50_duration, 0)::numeric, 0) AS output,
+                  CASE
+                    WHEN p50.total_builds = 0 THEN 'No builds found for this service'
+                    ELSE CONCAT('P50 build duration: ', ROUND(COALESCE(p50.p50_duration, 0)::numeric / 60, 1), ' minutes (', p50.total_builds, ' builds)')
+                  END AS message
+                FROM p50_calculation p50;
+            EOT
+    },
+    "p_75" = {
+      name           = "P75"
+      scorecard_level_key = "bronze"
+      ordering       = 1
+      output_enabled = true
+      output_type    = "string"
+      published      = true
+      sql            = <<-EOT
+                -- Scorecard check: P75 Build Wait Time ≤ 30 minutes
+                -- This check calculates the 75th percentile (p75) build duration for the service
+                -- and passes if it's 30 minutes (1800 seconds) or less
+                
+                WITH entity_repo AS (
+                  -- Step 1: Get the repository name for this specific entity
+                  SELECT dceae.name AS repository_name
+                  FROM dx_catalog_entities dce
+                  JOIN dx_catalog_entity_aliases dcea ON dce.id = dcea.entity_id
+                  JOIN dx_catalog_entity_alias_entries dceae ON dceae.entity_alias_id = dcea.id
+                  WHERE dce.identifier = $entity_identifier
+                    AND dce.entity_type_identifier = 'service'
+                    AND dcea.entity_alias_type = 'github_repo'
+                ),
+                build_durations AS (
+                  -- Step 2: Get build durations for this entity's repository
+                  SELECT pr.duration
+                  FROM entity_repo er
+                  JOIN pipeline_runs pr ON pr.repository = er.repository_name
+                  WHERE pr.duration IS NOT NULL
+                    AND pr.duration > 0
+                ),
+                p75_calculation AS (
+                  -- Step 3: Calculate P75 build duration
+                  SELECT 
+                    percentile_cont(0.75) WITHIN GROUP (ORDER BY duration) AS p75_duration,
+                    COUNT(*) AS total_builds
+                  FROM build_durations
+                )
+                -- Step 4: Return check results
+                SELECT 
+                  CASE
+                    WHEN p75.total_builds = 0 THEN 'FAIL'
+                    WHEN p75.p75_duration <= 1800 THEN 'PASS'
+                    WHEN p75.p75_duration <= 2700 THEN 'WARN'
+                    ELSE 'FAIL'
+                  END AS status,
+                  ROUND(COALESCE(p75.p75_duration, 0)::numeric, 0) AS output,
+                  CASE
+                    WHEN p75.total_builds = 0 THEN 'No builds found for this service'
+                    ELSE CONCAT('P75 build duration: ', ROUND(COALESCE(p75.p75_duration, 0)::numeric / 60, 1), ' minutes (', p75.total_builds, ' builds)')
+                  END AS message
+                FROM p75_calculation p75
+            EOT
+    },
+    "p_90" = {
+      name           = "P90"
+      scorecard_level_key = "silver"
+      ordering       = 0
+      output_enabled = true
+      output_type    = "string"
+      published      = true
+      sql            = <<-EOT
+                -- Scorecard check: P90 Build Wait Time ≤ 5 minutes
+                -- This check calculates the 90th percentile (p90) build duration for the service
+                -- and passes if it's 5 minutes (300 seconds) or less
+                
+                WITH entity_repo AS (
+                  -- Step 1: Get the repository name for this specific entity
+                  SELECT dceae.name AS repository_name
+                  FROM dx_catalog_entities dce
+                  JOIN dx_catalog_entity_aliases dcea ON dce.id = dcea.entity_id
+                  JOIN dx_catalog_entity_alias_entries dceae ON dceae.entity_alias_id = dcea.id
+                  WHERE dce.identifier = $entity_identifier
+                    AND dce.entity_type_identifier = 'service'
+                    AND dcea.entity_alias_type = 'github_repo'
+                ),
+                build_durations AS (
+                  -- Step 2: Get build durations for this entity's repository
+                  SELECT pr.duration
+                  FROM entity_repo er
+                  JOIN pipeline_runs pr ON pr.repository = er.repository_name
+                  WHERE pr.duration IS NOT NULL
+                    AND pr.duration > 0
+                ),
+                p90_calculation AS (
+                  -- Step 3: Calculate P90 build duration
+                  SELECT 
+                    percentile_cont(0.9) WITHIN GROUP (ORDER BY duration) AS p90_duration,
+                    COUNT(*) AS total_builds
+                  FROM build_durations
+                )
+                -- Step 4: Return check results
+                SELECT 
+                  CASE
+                    WHEN p90.total_builds = 0 THEN 'FAIL'
+                    WHEN p90.p90_duration <= 300 THEN 'PASS'
+                    WHEN p90.p90_duration <= 450 THEN 'WARN'
+                    ELSE 'FAIL'
+                  END AS status,
+                  ROUND(COALESCE(p90.p90_duration, 0)::numeric, 0) AS output,
+                  CASE
+                    WHEN p90.total_builds = 0 THEN 'No builds found for this service'
+                    ELSE CONCAT('P90 build duration: ', ROUND(COALESCE(p90.p90_duration, 0)::numeric / 60, 1), ' minutes (', p90.total_builds, ' builds)')
+                  END AS message
+                FROM p90_calculation p90
+            EOT
+    },
+    "success_rate" = {
+      description    = "Build success rate 98% or higher"
+      name           = "Success rate"
+      scorecard_level_key = "gold"
+      ordering       = 1
+      output_enabled = true
+      output_type    = "string"
+      published      = true
+      sql            = <<-EOT
+                -- Scorecard check: Build Stability ≥ 98%
+                -- This check calculates the build success rate for the service
+                -- and passes if it's 98% or above
+                
+                WITH entity_repo AS (
+                  -- Step 1: Get the repository name for this specific entity
+                  SELECT dceae.name AS repository_name
+                  FROM dx_catalog_entities dce
+                  JOIN dx_catalog_entity_aliases dcea ON dce.id = dcea.entity_id
+                  JOIN dx_catalog_entity_alias_entries dceae ON dceae.entity_alias_id = dcea.id
+                  WHERE dce.identifier = $entity_identifier
+                    AND dce.entity_type_identifier = 'service'
+                    AND dcea.entity_alias_type = 'github_repo'
+                ),
+                build_success_calculation AS (
+                  -- Step 2: Calculate build success rate for this entity's repository
+                  SELECT 
+                    SUM(CASE WHEN pr.status = 'success' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) AS success_rate,
+                    COUNT(*) AS total_builds,
+                    SUM(CASE WHEN pr.status = 'success' THEN 1 ELSE 0 END) AS successful_builds
+                  FROM entity_repo er
+                  JOIN pipeline_runs pr ON pr.repository = er.repository_name
+                  WHERE pr.status IS NOT NULL
+                    AND pr.status IN ('success', 'failure', 'failed', 'error')
+                )
+                -- Step 3: Return check results
+                SELECT 
+                  CASE
+                    WHEN bsc.total_builds = 0 THEN 'FAIL'
+                    WHEN bsc.success_rate >= 98 THEN 'PASS'
+                    WHEN bsc.success_rate > 95 THEN 'WARN'
+                    ELSE 'FAIL'
+                  END AS status,
+                  ROUND(COALESCE(bsc.success_rate, 0)::numeric, 1) AS output,
+                  CASE
+                    WHEN bsc.total_builds = 0 THEN 'No builds found for this service'
+                    ELSE CONCAT('Build success rate: ', ROUND(COALESCE(bsc.success_rate, 0)::numeric, 1), '% (', bsc.successful_builds, '/', bsc.total_builds, ' builds)')
+                  END AS message
+                FROM build_success_calculation bsc
+            EOT
+    },
+  }
+  description        = ""
+  empty_level_color  = "#cbd5e1"
+  empty_level_label  = "Incomplete"
+  entity_filter_type = "entity_types"
+  entity_filter_type_identifiers = [
+    "service",
+  ]
+  evaluation_frequency_hours = 4
+  levels = {
+    "bronze" = {
+      color = "#FB923C"
+      name  = "Bronze"
+      rank  = 1
+    },
+    "gold" = {
+      color = "#FBBF24"
+      name  = "Gold"
+      rank  = 3
+    },
+    "silver" = {
+      color = "#9CA3AF"
+      name  = "Silver"
+      rank  = 2
+    },
+  }
+  name = "Example CI Service Reliability"
+  type = "LEVEL"
 }
 
 # SonarQube Scorecard
@@ -627,7 +870,7 @@ resource "dx_scorecard" "sonarqube_insights" {
       points                    = 1
     }
   }
-} 
+}
 
 # SonarSource Scorecard
 resource "dx_scorecard" "sonarcloud_insights" {
@@ -1096,7 +1339,7 @@ resource "dx_scorecard" "sonarcloud_insights" {
       points                    = 1
     }
   }
-} 
+}
 
 # GitHub Repo Scorecard
 resource "dx_scorecard" "github_repo_configuration" {
@@ -1252,7 +1495,7 @@ resource "dx_scorecard" "github_repo_configuration" {
       name  = "Production Ready"
       rank  = 3
     }
-    
+
   }
   name      = "GitHub Repo Configuration"
   published = false
@@ -1274,9 +1517,9 @@ resource "dx_scorecard" "snyk_issues" {
 
   levels = {
     required = {
-      name = "Required"
+      name  = "Required"
       color = "#000000"
-      rank = 1
+      rank  = 1
     }
     bronze = {
       name  = "Bronze"
@@ -1319,7 +1562,7 @@ resource "dx_scorecard" "snyk_issues" {
       output_enabled      = false
       output_type         = null
       output_aggregation  = null
-      published           = true 
+      published           = true
     }
 
     high_critical_snyk_issues = {

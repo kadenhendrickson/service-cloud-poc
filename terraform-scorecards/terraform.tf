@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     dx = {
-      source = "get-dx/dx"
+      source  = "get-dx/dx"
       version = "~>0.4.0"
     }
   }
